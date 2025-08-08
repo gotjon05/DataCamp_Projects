@@ -1,0 +1,55 @@
+
+1. Find the ten best-selling games. The output should contain all the columns in the game_sales table and be sorted by the games_sold column in descending order. Save the output as best_selling_games.
+
+The problem almost gave the entire answer. It needs to be sorted by the games_sold column and sorted in descending order. However, i need to limit the output by 10 to capture only the ten best selling games. 
+
+SELECT
+    name,
+    publisher,
+    developer,
+    games_sold,
+    year
+FROM
+    game_sales
+ORDER BY
+    games_sold DESC
+LIMIT 
+    10;
+
+
+
+2. Find the ten years with the highest average critic score, where at least four games were released (to ensure a good sample size). Return an output with the columns year, num_games released, and avg_critic_score. The avg_critic_score should be rounded to 2 decimal places. The table should be ordered by avg_critic_score in descending order. Save the output as critics_top_ten_years. Do not use the critics_avg_year_rating table provided; this has been provided for your third query.
+
+Requirements:
+-years ordered by highest critic score in DESC order
+-limit to 10
+-filter by at least four games released 
+-required columns: year, num_games, avg_critic_score 
+-avg_critic score needs to be rounded to 2 decimal places
+
+I was initially confused by this problem, early on, I thought i didnt need to aggregate the count for games released. So that left me with two non-aggregate values to find the avg by year. Requiring a CTE because i didnt want to group by num_games and year
+
+I realized the folly on my ways and fixed it. I also realized that i couldnt reference num_games in HAVING 
+
+-- critics_top_ten_years
+SELECT
+	gs.year,
+	ROUND(AVG(r.critic_score), 2) AS avg_critic_score,
+	COUNT(gs.name) AS num_games
+FROM
+	game_sales as gs
+JOIN
+	reviews as r
+ON
+	gs.name = r.name
+GROUP BY
+	gs.year
+HAVING
+	COUNT(gs.name) >= 4
+ORDER BY
+	avg_critic_score DESC
+LIMIT
+	10;
+
+
+	
