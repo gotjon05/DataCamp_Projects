@@ -1,3 +1,4 @@
+Golden Era Video Games Write-up
 
 1. Find the ten best-selling games. The output should contain all the columns in the game_sales table and be sorted by the games_sold column in descending order. Save the output as best_selling_games.
 
@@ -27,9 +28,9 @@ Requirements:
 -required columns: year, num_games, avg_critic_score 
 -avg_critic score needs to be rounded to 2 decimal places
 
-I was initially confused by this problem, early on, I thought i didnt need to aggregate the count for games released. So that left me with two non-aggregate values to find the avg by year. Requiring a CTE because i didnt want to group by num_games and year
+I was initially confused by this problem, early on, I thought the count of games released was already done as a non-aggregate value. With two non-aggregate values num_games and year, i thought i had to create a cte to avoid grouping them both at the same time. 
 
-I realized the folly on my ways and fixed it. I also realized that i couldnt reference num_games in HAVING 
+I realized the folly on my ways and fixed it. I also realized that i couldnt directly reference num_games in HAVING 
 
 -- critics_top_ten_years
 SELECT
@@ -51,5 +52,52 @@ ORDER BY
 LIMIT
 	10;
 
+3. Find the years where critics and users broadly agreed that the games released were highly rated. Specifically, return the years where the average critic score was over 9 OR the average user score was over 9. The pre-computed average critic and user scores per year are stored in users_avg_year_rating and critics_avg_year_rating tables respectively. The query should return the following columns: year, num_games, avg_critic_score, avg_user_score, and diff. The diff column should be the difference between the avg_critic_score and avg_user_score. The table should be ordered by the year in ascending order, save this as a DataFrame named golden_years.
 
-	
+
+-filter by avg critic score over 9 or user avg critic score over 9
+-required columns: year, num_games, avg_critic_score, avg_user_score, and diff
+-dif column is difference between the avg_critic_score and avg_user_score
+-order by year in asc 
+
+Attempt 1:
+SELECT
+    critic.year,
+    critic.num_games,
+    critic.avg_critic_score,
+    user.avg_user_score,
+    critic.avg_critic_score - user.avg_user_score AS diff
+FROM
+    critics_avg_year_rating AS critic
+WHERE
+    critic.avg_critic_score > 9 OR user.avg_user_score > 9
+JOIN
+    users_avg_year_rating AS user
+ON
+    critic.year = user.year,
+    critic.num_games = user.num_games
+ORDER BY
+	critic.year ASCEND 
+
+Solution:
+-I put Where in the wrong order, needs to be after join
+-
+
+SELECT
+    critic.year,
+    critic.num_games,
+    critic.avg_critic_score,
+    user.avg_user_score,
+    critic.avg_critic_score - user.avg_user_score AS diff
+FROM
+    critics_avg_year_rating AS critic
+JOIN
+    users_avg_year_rating AS user
+ON
+    critic.year = user.year
+AND 
+    critic.num_games = user.num_games
+WHERE
+    critic.avg_critic_score > 9 OR user.avg_user_score > 9
+ORDER BY
+	critic.year ASCEND

@@ -1,0 +1,183 @@
+Exploring Trends in American Baby Names
+
+
+1. List the first five names in alphabetical order and find out if each name is "Classic" or "Trendy." Save your query as a DataFrame name_types with three columns: first_name, sum, and popularity_type. A name is considered "Classic" if it appears in 50 or more years, and "Trendy" otherwise.
+
+-I will need to create the column popularity_type and classify each row as Classic or Trendy using case statements with criteria provided 
+-order by name in desc order 
+-I need to group the results by name to get the sum of babies with that name 
+-I will need to create a CTE to find the sum of babies with first names, because i dont want to group by the case statement im creating, popularity_type
+
+Attempt 1:
+I didnt realize that i had to count how many distinct years a name is in the dataset. Was using SUM instead.
+
+WITH baby_sum AS(
+    SELECT
+        first_name,
+        SUM(num) AS sum
+    FROM
+        baby_names
+    GROUP BY
+        first_name
+)
+
+SELECT
+    baby_sum.first_name,
+    baby_sum.sum, 
+    CASE
+        WHEN baby_sum >= 50 THEN "Classic"
+        ELSE "Trendy"
+    END AS popularity_type
+FROM
+    baby_sum
+ORDER BY 
+    baby_sum.first_name
+LIMIT 5;
+
+
+Attempt 2: 
+
+
+WITH baby_sum AS(
+    SELECT
+        first_name,
+        SUM(num) AS sum,
+        COUNT(DISTINCT year) AS distinct_year
+    FROM
+        baby_names
+    GROUP BY
+        first_name
+)
+
+SELECT
+    baby_sum.first_name,
+    baby_sum.sum, 
+    CASE
+        WHEN distinct_year >= 50 THEN 'Classic'
+        ELSE 'Trendy'
+    END AS popularity_type
+FROM
+    baby_sum
+ORDER BY 
+    baby_sum.first_name ASC
+LIMIT 5;
+
+
+2. What were the top 20 male names overall, and how did the name Paul rank? Save your query as a DataFrame top_20 with three columns: name_rank, first_name, and sum.
+
+I learned that window functions can create aggregates without the need for using group by. Eliminating the need to create a CTE, saving lots of time. 
+
+-filter sex for male and the name Paul 
+-limit 20
+-Required fields name_rank, first_name, sum 
+-Use the windows rank function, ranking first_name by sum 
+-Use the windows function to aggregate the sum of each name by num
+
+
+Attempt 1:
+-i cant directly reference the window function with sum in my rank window function
+-i need to partition rank by first_name to group it by name, then order that ranking by sum 
+SELECT
+    first_name,
+    SUM(num) OVER (PARTITION BY first_name) AS sum,
+    RANK() OVER (ORDER BY sum) AS name_rank 
+FROM 
+    baby_names
+WHERE
+    first_name = 'Paul'
+AND
+    sex = 'M'
+LIMIT
+    20;
+
+
+Attempt 2:
+I got the error: Window functions are not allowed in other window functions
+
+I cant repeat this: SUM(num) OVER (PARTITION BY first_name) in two window functions because thats considered nesting. Window functions get computed last. and Rank() doesnt have the information it needs causing an error. 
+
+I need to calculate the sum first (using a subquery or CTE), and then apply RANK() in a separate step:
+
+SELECT
+    first_name,
+    SUM(num) OVER (PARTITION BY first_name) AS sum,
+    RANK() OVER (ORDER BY SUM(num) OVER (PARTITION BY first_name) DESC) AS name_rank 
+FROM 
+    baby_names
+WHERE
+    first_name = 'Paul'
+AND
+    sex = 'M'
+LIMIT
+    20;
+
+Attempt 3: 
+I thought i needed to JOIN the cte with the main query, in order to apply this data to the main query.
+When i ran the query with the filter for Paul and without, it gave me duplicates and this was because i joined the CTE with the main query. Join matches duplicate names in the main query with the aggregate single name in the cte, creating duplicates. 
+
+And i dont need to join cte in the future because that data is already available in my main query,
+
+
+WITH name_sum AS(
+    SELECT
+        first_name,
+        sex,
+        SUM(num) OVER (PARTITION BY first_name) AS sum
+    FROM
+       baby_names 
+    WHERE
+        sex = 'M'
+)
+
+SELECT
+    nm.first_name,
+    nm.sum,
+    RANK() OVER (ORDER BY nm.sum DESC) AS name_rank
+FROM 
+    name_sum AS nm
+ WHERE
+    nm.first_name = 'Paul'
+LIMIT
+    20;
+
+
+Solution:
+Im still getting duplicates and its because of how RANK() behaved. The duplicates are all tied based on SUM, and RANK() handles ties by putting all the duplicates together. I can either use a different varient of rank that handles ties differently or group names to avoid duplicates altogether. 
+
+Since i dont have two window functions, it wasnt neccisary for me to have a cte 
+
+I had to remember that Having is used to filter aggregated data after group by and WHERE is for non-aggregated data
+
+I learned the value of window functions to avoid group by. But also, where group by absolutely neccisary despite using window functions
+SELECT
+    first_name,
+    SUM(num) AS sum,
+    RANK() OVER (ORDER BY SUM(num) DESC) AS name_rank
+FROM 
+    baby_names 
+Where
+    sex = 'M'
+GROUP BY
+    first_name
+LIMIT
+    20;
+
+
+
+4. Which female names appeared in both 1920 and 2020? Save your query as a DataFrame a_names with two columns: first_name, and total_occurrences.
+
+SELECT
+    first_name,
+    COUNT(*) AS total_occurrences
+FROM
+    baby_names
+WHERE
+    (year = 1920 OR year = 2020)
+AND
+	sex = 'F'
+GROUP BY
+    first_name
+HAVING
+	 COUNT(*) > 1
+ORDER BY
+	total_occurrences DESC
