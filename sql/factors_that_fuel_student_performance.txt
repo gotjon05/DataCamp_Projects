@@ -1,0 +1,120 @@
+Factors that fuel student performance
+
+
+1.Do more study hours and extracurricular activities lead to better scores? Analyze how studying more than 10 hours per week, while also participating in extracurricular activities, impacts exam performance. The output should include two columns: 1) hours_studied and 2) avg_exam_score. Group and sort the results by hours_studied in descending order. Save the query as avg_exam_score_by_study_and_extracurricular.
+
+hours_studied column wasnt shown in table diagram. Found it in sample output
+
+Independent variable: hours_studied
+Dependent variable: avg_exam_score
+Controlled variables (filters): participation in extracurricular activities, and minimum study hours > 10.
+
+SELECT
+    hours_studied,
+    AVG(exam_score) AS avg_exam_score
+FROM
+    student_performance
+WHERE
+    extracurricular_activities = 'Yes'
+AND
+    hours_studied > 10
+GROUP BY
+    hours_studied
+ORDER BY
+    hours_studied DESC;
+
+
+2. Is there a sweet spot for study hours? Explore how different ranges of study hours impact exam performance by calculating the average exam score for each study range. Categorize students into four groups based on hours studied per week: 1-5 hours, 6-10 hours, 11-15 hours, and 16+ hours. The output should contain two columns: 1) hours_studied_range and 2) avg_exam_score. Group the results by hours_studied_range and sort them by avg_exam_score in descending order. Save the query as avg_exam_score_by_hours_studied_range.
+
+I need to use case statements for the ranges of hours studied per week 
+
+SELECT
+    CASE 
+        WHEN hours_studied >= 1 AND hours_studied <= 5 THEN '1-5 hours'
+        WHEN hours_studied >= 6 AND hours_studied <= 10 THEN '6-10 hours'
+        WHEN hours_studied >= 11 AND hours_studied <= 15 THEN '11-15 hours'
+        WHEN hours_studied >= 16 THEN '16+ hours'
+    END AS hours_studied_range,
+    AVG(exam_score) AS avg_exam_score
+FROM
+    student_performance
+GROUP BY
+    hours_studied_range
+ORDER BY
+    avg_exam_score DESC
+
+3. A teacher wants to show their students their relative rank in the class, without revealing their exam scores to each other. Use a window function to assign ranks based on exam_score, ensuring that students with the same exam score share the same rank and no ranks are skipped. Return the columns attendance, hours_studied, sleep_hours, tutoring_sessions, and exam_rank. The students with the highest exam score should be at the top of the results, so order your query by exam_rank in ascending order. Limit your query to 30 students.
+
+I dont need to partition my window function i just need to order it by exam score because its for the entire class 
+
+This seems like default behavior for RANK() -- ensure that students with the same exam score share the same rank and no ranks are skipped
+
+
+
+Attempt 1:
+The 'exam_rank' should go up to 14. Please check the ranking function. This wasnt a requirement in the problem so i will need to filter exam_rank to be less than or equal to 14. 
+
+I will need to create a CTE to filter my window function. So it runs before WHERE runs 
+
+-- student_exam_ranking
+-- Add solution code below 
+SELECT 
+    attendance,
+    hours_studied,
+    sleep_hours,
+    tutoring_sessions,
+	exam_score,
+    RANK() OVER (
+        ORDER BY exam_score DESC
+    ) AS exam_rank
+FROM 
+    student_performance
+ORDER BY
+	exam_rank ASC
+LIMIT 30;
+
+Attempt 2: 
+Error:Your solution doesn't look quite right
+Expected 'student_exam_ranking' to contain 30 rows and 5 columns (attendance, hours_studied, sleep_hours, tutoring_sessions, exam_rank).
+
+WITH less_14 AS(
+    SELECT 
+    attendance,
+    hours_studied,
+    sleep_hours,
+    tutoring_sessions,
+    RANK() OVER (
+        ORDER BY exam_score DESC
+    ) AS exam_rank
+FROM 
+    student_performance
+)
+
+SELECT 
+    attendance,
+    hours_studied,
+    sleep_hours,
+    tutoring_sessions,
+	exam_rank
+FROM 
+    less_14
+WHERE
+    exam_rank <= 14
+ORDER BY
+	exam_rank ASC
+LIMIT 30;
+
+SOLUTION 
+i misinterpreted that error message 
+
+I needed to use dense rank to keep ties and doesnt skip rank 
+
+SELECT
+    attendance,
+    hours_studied,
+    sleep_hours,
+    tutoring_sessions,
+    DENSE_RANK() OVER (ORDER BY exam_score DESC) AS exam_rank
+FROM student_performance
+ORDER BY exam_rank ASC
+LIMIT 30;

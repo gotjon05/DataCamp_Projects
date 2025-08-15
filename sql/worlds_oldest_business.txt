@@ -1,0 +1,146 @@
+Worlds Oldest Business
+
+
+1. What is the oldest business on each continent? Save your query as a DataFrame oldest_business_continent with four columns: continent, country, business, and year_founded in any order.
+
+Im using my CTE as a filter for my main query by joining rows that match oldest 
+
+Ive used CTE's in two different ways:
+1. Pre-aggregate CTE:
+aggregate one column to then join the results with the other non-aggregate columns in the main query
+
+2. Filter CTE:
+
+
+
+WITH oldest AS(
+SELECT
+    MIN(b.year_founded) AS min_year,
+    c.continent
+FROM
+    businesses AS b
+JOIN
+    countries AS c
+ON
+    b.country_code = c.country_code
+GROUP BY
+    c.continent
+)
+
+
+SELECT
+    c.continent,
+    c.country,
+    b.business,
+    b.year_founded
+FROM
+    businesses AS b
+JOIN
+    countries AS c
+ON 
+    b.country_code = c.country_code
+JOIN
+    oldest
+ON
+    c.continent = oldest.continent
+AND
+    b.year_founded = oldest.min_year
+
+-- Attempt to solve the same problem using window function --
+
+This will save me the effort of having to use a CTE 
+
+
+Attempt 1:
+I need to PARTITION By Continent because i want to find the min per Continent. Acts similar to Group by
+
+SELECT 
+    c.continent,
+    c.country,
+    b.business,
+    MIN(year_founded) OVER(ORDER BY c.continent)
+FROM
+    businesses AS b
+JOIN
+    countries AS c
+ON 
+    b.country_code = c.country_code
+
+
+Attempt 2:
+To isolate the min year founded per continent, the best way to do this with window functions is using row number. And if i do this, i need to filter my window function using WHERE to get the first row per continent. Because WHERE runs first, and wouldnt be able to pull up window function data, unless i put window function in a cte. CTE runs before WHERE. 
+
+I dont feel like im saving any time by using window functions with this problem 
+
+WITH min_continent AS(
+SELECT 
+    c.continent,
+    c.country,
+    b.business,
+    b.year_founded,
+    ROW_NUMBER() OVER(
+        PARTITION BY c.continent
+        ORDER BY b.year_founded
+    ) AS yf
+FROM
+    businesses AS b
+JOIN
+    countries AS c
+ON 
+    b.country_code = c.country_code
+)
+
+SELECT 
+    continent,
+    country,
+    business,
+    year_founded
+FROM
+    min_continent
+WHERE
+    yf = 1;
+
+
+2. How many countries per continent lack data on the oldest businesses? Does including new_businesses change this? Count the number of countries per continent missing business data, including new_businesses; store the results in a DataFrame count_missing with columns continent and countries_without_businesses.
+
+I started this problem unable to find missing buisness data from country table. And thats because i was using INNER JOIN, matching all existing buisness infromation with countries. 
+
+So i need to include everything from countries that dont have matching buisneses. By using LEFT JOIN, i can keep everything from the countries table, including countries without buisness data 
+
+
+
+SELECT
+    continent,
+    COUNT(*) AS countries_without_businesses
+FROM
+    countries AS c
+LEFT JOIN
+     businesses AS b
+ON 
+    b.country_code = c.country_code
+WHERE
+    b.business IS NULL;
+GROUP BY
+    continent
+
+
+3. Which business categories are best suited to last many years, and on what continent are they? Store your answer in a DataFrame oldest_by_continent_category with the oldest founding year for each continent and category combination. It should contain three columns: continent, category, and year_founded, in that order.
+
+I need to aggregate the MIN(year_founded) by category and continent 
+
+SELECT
+    continent,
+    category,
+    MIN(b.year_founded) AS year_founded
+FROM
+    businesses AS b
+JOIN
+    countries AS c
+ON 
+    b.country_code = c.country_code
+JOIN
+    categories AS ca
+ON 
+    b.category_code = ca.category_code
+GROUP BY
+    category, continent
