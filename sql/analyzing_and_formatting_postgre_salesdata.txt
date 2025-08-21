@@ -40,6 +40,9 @@ ON
 
 
 Attempt 2:
+I got an error "function round(double precision, integer) does not exist"
+
+Double Precision is SQL is floats and sales and profits are type double precision. With Double Precision i can only use ROUND() with one argument, so i need to type cast to int() to round by 2. 
 
 WITH sp AS(
 SELECT
@@ -71,3 +74,144 @@ FROM
     sp
 ORDER BY
     category ASC
+
+Attempt 3:
+
+WITH sp AS(
+SELECT
+    p.category,
+    p.product_name,
+    ROUND(SUM(o.sales)::numeric, 2) AS product_total_sales,
+    ROUND(SUM(o.profit)::numeric, 2) AS product_total_profit
+FROM
+    orders AS o
+JOIN
+    products AS p
+ON
+    o.product_id = p.product_id    
+GROUP BY
+    p.category, 
+    p.product_name
+
+)
+SELECT 
+    category,
+    product_name,
+    product_total_sales,
+    product_total_profit,
+    RANK() OVER (
+        PARTITION BY category
+        ORDER BY product_total_sales DESC
+    ) AS product_rank
+FROM
+    sp
+ORDER BY
+    category ASC
+
+
+Attempt 4:
+I realized i didnt limit rank to top 5 rank of each category. So i have to filter my Rank window function to 5 
+
+In order to filter for the top 5 categories, i need to put RANK() in a CTE otherwise WHERE will run before RANK() and break the program 
+
+WITH sp AS(
+SELECT
+    p.category,
+    p.product_name,
+    ROUND(SUM(o.sales)::numeric, 2) AS product_total_sales,
+    ROUND(SUM(o.profit)::numeric, 2) AS product_total_profit
+FROM
+    orders AS o
+JOIN
+    products AS p
+ON
+    o.product_id = p.product_id    
+GROUP BY
+    p.category, 
+    p.product_name
+
+)
+SELECT 
+    category,
+    product_name,
+    product_total_sales,
+    product_total_profit,
+    RANK() OVER (
+        PARTITION BY category
+        ORDER BY product_total_sales DESC
+    ) AS product_rank
+FROM
+    sp
+ORDER BY
+    category ASC
+
+
+
+Attempt 5:
+I had to remember to remove WITH and add a comma to have two CTE's syntactically correct 
+
+
+WITH sp AS(
+SELECT
+    p.category,
+    p.product_name,
+    ROUND(SUM(o.sales)::numeric, 2) AS product_total_sales,
+    ROUND(SUM(o.profit)::numeric, 2) AS product_total_profit
+FROM
+    orders AS o
+JOIN
+    products AS p
+ON
+    o.product_id = p.product_id    
+GROUP BY
+    p.category, 
+    p.product_name
+
+),
+
+ranking AS(
+SELECT 
+    category,
+    product_name,
+    product_total_sales,
+    product_total_profit,
+    RANK() OVER (
+        PARTITION BY category
+        ORDER BY product_total_sales DESC
+    ) AS product_rank
+FROM
+    sp
+ORDER BY
+    category ASC
+)
+
+
+SELECT
+    category,
+    product_name,
+    product_total_sales,
+    product_total_profit,
+    product_rank
+FROM
+    ranking
+WHERE
+    product_rank <= 5
+
+
+
+2. Calculate the quantity for orders with missing values in the quantity column by determining the unit price for each product_id using available order data, considering relevant pricing factors such as discount, market, or region. Then, use this unit price to estimate the missing quantity values. The calculated values should be stored in the calculated_quantity column. Save query output as impute_missing_values, containing the following columns: product_id, discount, market, region, sales, quantity, calculated_quantity (rounded to zero decimal places)
+
+(The most challanging part of this problem is understanding the requirements)
+
+"Calculate the quantity for orders with missing values in the quantity column by determining the unit price for each product_id using available order data, considering relevant pricing factors such as discount, market, or region. Then, use this unit price to estimate the missing quantity values"
+
+
+First attempt at understanding this problem:
+    I need to group product id by order data, discount, market and region so each combination has its own unit price. Then use this aggregate data to count missing data from the quantity column, which will be stored in calculated_quantity and rounded to zero decimal place
+
+Second Attempt at understanding this problem:
+I realize now, that there is no unit price column initially available, i have to find it 
+
+ I need to group product id by order data, discount, market and region so each combination has its own unit price. I need to calculate the unit price since its not available. 
+
+ Then find the sum of missing values in the quanitty column 
