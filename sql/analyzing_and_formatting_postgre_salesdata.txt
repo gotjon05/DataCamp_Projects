@@ -1,0 +1,73 @@
+
+
+
+Analyzing and Formatting PostGre Sales Data 
+
+1. Find the top 5 products from each category based on highest total sales. The output should be sorted by category in ascending order and by sales in descending order within each category, i.e. within each category product with highest margin should sit on the top. Save the query as top_five_products_each_category, containing the following columns:
+category
+product_name
+product_total_sales (rounded to two decimal places)
+product_total_profit (rounded to two decimal places)
+product_rank
+
+
+I need to aggregate sales and profits by product and category. 
+
+And then Rank by high total sales, explicitly wants me to use rak window function 
+
+
+
+
+misinterpreted the problem 
+
+Attempt 1:
+SELECT 
+    p.category
+    p.product_name
+    ROUND(SUM(sales), 2) AS product_total_sales
+    ROUND(SUM(profits), 2) AS product_total_profit
+    RANK() OVER (
+        PARTITION BY p.category
+        ORDER BY product_total_sales DESC
+    ) AS product_rank
+FROM
+    orders AS o
+JOIN
+    products AS p
+ON
+    o.product_id = p.product_id
+
+
+
+Attempt 2:
+
+WITH sp AS(
+SELECT
+    p.category,
+    p.product_name,
+    ROUND(SUM(o.sales), 2) AS product_total_sales,
+    ROUND(SUM(o.profits), 2) AS product_total_profit
+FROM
+    orders AS o
+JOIN
+    products AS p
+ON
+    o.product_id = p.product_id    
+GROUP BY
+    p.category, 
+    p.product_name
+
+)
+SELECT 
+    category,
+    product_name,
+    product_total_sales,
+    product_total_profit,
+    RANK() OVER (
+        PARTITION BY category
+        ORDER BY product_total_sales DESC
+    ) AS product_rank
+FROM
+    sp
+ORDER BY
+    category ASC
